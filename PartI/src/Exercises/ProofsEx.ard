@@ -1,3 +1,4 @@
+\import Equality (pmap)
 \import Proofs
 \open Nat(+,*)
 
@@ -112,4 +113,4 @@
 
 \func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) \elim xs
   | nil => idp
-  | cons a xs => \lam i => cons a ((++-assoc xs ys zs) i)
+  | cons a xs => pmap (cons a) (++-assoc xs ys zs) -- we shouldn't go to the path now

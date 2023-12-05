@@ -7,18 +7,30 @@
 
 \func Jalt {A : \Type} (B : \Pi (a a' : A) -> a = a' -> \Type)
            (b : \Pi (a : A) -> B a a idp)
-           {a a' : A} (p : a = a') : B a a' p => {?}
+           {a a' : A} (p : a = a') : B a a' p =>
+  J (B a) (b a) p
 
 -- Define 'J' via 'Jalt'. You can use only 'Jalt', 'idp' and everything definable in terms of these constructs (but not pattern matching on 'idp').
 -- See the end of this file for a hint.
 
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+--- Jian: for comparing, i want to define transport by J firstly.
+\func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  J (\lam x p => B x) b p
 
-\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p => {?}
+-- I GET INSPIRED BY THIS!!!!!!!! THANK U!
+\func coe' {A B : \Type} (p : A = B) (a : A) : B =>
+  (Jalt (\lam A B p => \Pi A -> B) (\lam A a => a) p) a
+
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  (Jalt (\lam a a' p => \Pi (B a) -> B a') (\lam T x => x) p) b
+
+\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p =>
+  Jalt {A} (\lam a a' p => (a,idp) = {\Sigma (x : A) (a = x)} (a', p)) (\lam a => idp {\Sigma (x : A) (a = x)} {(a, idp)}) {a} {p.1} p.2
 
 \func J' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type)
          (b : B a idp)
-         {a' : A} (p : a = a') : B a' p => {?}
+         {a' : A} (p : a = a') : B a' p =>
+  transport' (\lam pr => B pr.1 pr.2) (sigma-contr (a', p)) b
 
 -- 2. Prove that 'vnil' is an identity for 'v++'.
 

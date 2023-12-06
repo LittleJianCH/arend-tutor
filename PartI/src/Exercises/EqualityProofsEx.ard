@@ -1,4 +1,7 @@
+\import Case (pred)
 \import EqualityProofs
+\import Exercises.EqualityEx (zero/=suc)
+\import Proofs (absurd)
 
 -- 1. The operator 'J' has a different form, which we denote 'Jalt'. Prove that 'J' and 'Jalt' are equivalent, i.e.
 -- define 'J' in terms of 'Jalt' and vice versa.
@@ -34,9 +37,62 @@
 
 -- 2. Prove that 'vnil' is an identity for 'v++'.
 
-\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm 0 n) (xs v++ vnil) = xs => {?}
+\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm 0 n) (xs v++ vnil) = xs \elim n, xs
+  | 0, vnil => idp
+  | suc n, vcons a xs =>
+    lemma a xs *> pmap (vcons a) (vnil-rightId xs)
+  \where {
+    \func lemma {A : \Type} {n : Nat} (a : A) (xs : Vec A n) :
+      transport (Vec A) (pmap suc (+-comm 0 n)) (vcons a (xs v++ vnil)) = vcons a (transport (Vec A) (+-comm 0 n) (xs v++ vnil)) =>
+      J (\lam n p => transport (Vec A) (pmap suc p) (vcons a (xs v++ vnil)) = vcons a (transport (Vec A) p (xs v++ vnil)))
+        idp (+-comm 0 n)
+      -- We use J operator to make transport can be evaluated by computation rule at idp.
+  }
 
 -- 3. Prove that all definitions of <= given in the module are equivalent.
+--- lessOrEq, LessOrEq, LessOrEq''', LessOrEq'', LessOrEq'
+--- For the convinience, we name them as 1, 2, 3, 4, 5.
+
+\func P1->P2 {n m : Nat} (p : lessOrEq n m) : LessOrEq n m \elim n, m, p
+  | 0, _, unit => z<=n
+  | suc n, suc m, p => s<=s (P1->P2 p)
+
+\func P2->P3 {n m : Nat} (p : LessOrEq n m) : LessOrEq''' n m \elim n, m, p
+  | 0, m, z<=n => (m, idp)
+  | suc n, suc m, s<=s p => \let ind => P2->P3 p \in (ind.1, pmap suc ind.2)
+
+\func P3->P4 {n m : Nat} (p : LessOrEq''' n m) : LessOrEq'' n m =>
+  help (transport (\lam x => x = m) (+-comm p.1 n) p.2)
+  \where {
+    \func help {n m t : Nat} : (n + t = m) -> LessOrEq'' n m \elim m, t
+      | _, 0 => <=-refl
+      | 0, suc t => \lam p => \case (zero/=suc (n + t) (inv p))
+      | suc m, suc t => \lam p => <=-step (help (pmap pred p))
+  }
+
+\func P4->P3 {n m : Nat} (p : LessOrEq'' n m) : LessOrEq''' n m \elim n, m, p
+  | n, suc m, <=-step p => \let ind => P4->P3 p \in (suc ind.1, transport (\lam x => x = suc m) suc-a+b (pmap suc ind.2))
+  | n, m, <=-refl p => (0, transport (\lam x => x = m) (inv zero-+-n) p)
+  \where {
+    \func zero-+-n {n : Nat} : 0 + n = n \elim n
+      | 0 => idp
+      | suc n => pmap suc zero-+-n
+    \func suc-a+b {a b : Nat} : suc (a + b) = suc a + b \elim b
+      | 0 => idp
+      | suc a => pmap suc suc-a+b
+  }
+
+\func P3->P5 {n m : Nat} (p : LessOrEq''' n m) : LessOrEq' n m \elim n, m
+  | 0, _ => z<=n' idp
+  | suc n, 0 => \case zero/=suc (p.1 + n) (inv p.2)
+  | suc n, suc m => s<=s' idp idp (P3->P5 (p.1, pmap pred p.2))
+
+\func P5->P1 {n m : Nat} (p : LessOrEq' n m) : lessOrEq n m \elim n, m, p
+  | 0, _, _ => unit
+  | suc n, _, z<=n' p => \case zero/=suc n (inv p)
+  | suc n, 0, s<=s' p1 p2 p => \case zero/=suc _ p2
+  | suc n, suc m, s<=s' {n'} {m'} p1 p2 p => P5->P1 (transport (\lam x => LessOrEq' n x) (inv (pmap pred p2))
+                                                    (transport (\lam x => LessOrEq' x m') (inv (pmap pred p1)) p))
 
 -- 4. Define the membership predicate 'In' for lists.
 

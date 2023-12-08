@@ -1,7 +1,7 @@
+\import Basics (Bool, false, true)
 \import Case (pred)
 \import EqualityProofs
 \import Exercises.EqualityEx (zero/=suc)
-\import Proofs (absurd)
 
 -- 1. The operator 'J' has a different form, which we denote 'Jalt'. Prove that 'J' and 'Jalt' are equivalent, i.e.
 -- define 'J' in terms of 'Jalt' and vice versa.
@@ -98,24 +98,64 @@
 
 \data List (A : \Type) | nil | cons A (List A)
 
-\data In {A : \Type} (a : A) (xs : List A)
+\data In {A : \Type} (a : A) (xs : List A) \elim xs
+  | cons x _ => In-eq (a = x)
+  | cons _ xs' => In-step (In a xs')
+
+\func In-example : In 2 (cons 0 (cons 1 (cons 2 (cons 3 nil)))) =>
+  In-step (In-step (In-eq idp))
 
 -- 5. Define reflexive and transitive closure of a relation.
 --    That is 'ReflTransClosure R' -- is the minimal reflexive and transitive relation containing R.
 
 \data ReflTransClosure {A : \Type} (R : A -> A -> \Type) (x y : A)
+  | Basic (R x y)
+  | Refl (x = y)
+  | Trans (\Sigma (z : A) (\Sigma (ReflTransClosure R x z) (ReflTransClosure R z y)))
 
 -- 6. Prove that if 'R' is already reflexive and transitive then 'ReflTransClosure R' is equivalent to 'R'.
 
 \func \infix 4 <-> {A : \Type} (P Q : A -> A -> \Type) => \Pi (x y : A) -> \Sigma (P x y -> Q x y) (Q x y -> P x y)
 
-\func ReflTransClosure-lem {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) : R <-> ReflTransClosure R => {?}
+\func ReflTransClosure-lem {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) : R <-> ReflTransClosure R =>
+  \lam x y => (
+    \lam P => Basic P,
+    \lam P => helper P refl trans
+  )
+  \where {
+    \func helper {A : \Type} {x y : A} {R : A -> A -> \Type} (P : (ReflTransClosure R) x y) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) : R x y \elim P
+      | Basic r => r
+      | Refl p => transport (\lam t => R x t) p (refl x)
+      | Trans (z, (P1, P2)) => trans x z y (helper P1 refl trans) (helper P2 refl trans)
+  }
 
 -- 7. Define the predicate xs <= ys for lists, which says "the list xs is a sublist of ys".
 
+\data <=-list {A : \Type} (as bs : List A) \elim as, bs
+  | nil, _ => nil<=
+  | cons a as', cons b bs' => eq<= (a = b) (<=-list as' bs')
+  | as, cons b bs' => drop<= (<=-list as bs')
+
 -- 8. Prove that 'filter xs <= xs' for any list xs.
 
+\func filter {A : \Type} (xs : List A) (p : A -> Bool) : List A \elim xs
+  | nil => nil
+  | cons a xs => \case p a \with {
+    | true => cons a (filter xs p)
+    | false => filter xs p
+  }
 
+\func filter<= {A : \Type} (xs : List A) (p : A -> Bool) : <=-list (filter xs p) xs \elim xs
+  | nil => nil<=
+  | cons a xs => lemma a xs p (p a) idp
+  \where {
+    \func lemma {A : \Type} (a : A) (xs : List A) (p : A -> Bool) (b : Bool) (eq : b = p a) : <=-list (\case b \with {
+      | true => cons a (filter xs p)
+      | false => filter xs p
+    }) (cons a xs) \elim b
+      | false => drop<= (filter<= xs p)
+      | true => eq<= idp (filter<= xs p)
+  }
 
 
 

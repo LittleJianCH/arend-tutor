@@ -1,34 +1,151 @@
 \import Records
+\import Exercises.BasicsEx (gcd)
 
 -- 1. Define the function 'swap' in several ways.
 
 -- Using \cowith and field access.
-\func swap {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst' => p.snd'
+  | snd' => p.fst'
+
 
 -- Using \new and pattern matching.
-\func swap' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A
+  | (a, b) => \new Pair B A b a
 
 -- Using \new and field access.
-\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A =>
+  \new Pair B A p.snd' p.fst'
 
 -- 2. Prove that 'swap (swap p) = p'.
 
-\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => {?}
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p
+  | (a,b) => idp
 
 -- 3. Prove that the type 'PosNat 0' is empty, but the type 'PosNat 1' is not.
 
 \data Empty
 
-\func zero-isNotPos (p : PosNat 0) : Empty => {?}
+\func T-false-to-Empty (t : T false) : Empty
 
-\func one-isPos : PosNat 1 => {?}
+\func zero-isNotPos (p : PosNat 0) : Empty =>
+  T-false-to-Empty p.p
+
+\func one-isPos : PosNat 1 =>
+  \new PosNat {
+    | p => tt
+  }
 
 -- 4. Define the \record consisting of pairs of coprime natural numbers.
 --    Define the type of natural numbers that are coprime with 60.
 
+\func coprime (a b : Nat) : Bool =>
+  nat-eq (gcd a b) 1
+  \where {
+    \func nat-eq (a b : Nat) : Bool
+      | zero, zero => true
+      | suc a, suc b => nat-eq a b
+      | _, _ => false
+  }
+
+\record CoPrime (a b : Nat) (p : T (coprime a b))
+
+\func coprime-with-60 : \Type =>
+  CoPrime { | a => 60 }
+
+\func coprime-with-60-exmaple : coprime-with-60 =>
+  \new CoPrime { | b => 7 | p => tt }
+
 -- 5. Define the class of monads, which extends the class of functors. Define \instance of this class for 'Maybe'.
 
+\class Applicative \extends Functor
+  | pure {A : \Type} : A -> F A
+  | ap {A B : \Type} : F (A -> B) -> F A -> F B
+  | ap-id {A : \Type} (x : F A) : ap (pure (\lam x => x)) x = x
+  | ap-homo {A B : \Type} (x : A) (f : A -> B) : ap (pure f) (pure x) = pure (f x)
+  | ap-inter {A B : \Type} (x : A) (f : F (A -> B)) :
+    ap f (pure x) = ap (pure (\lam (g : A -> B) => g x)) f
+  | ap-comp {A B C : \Type} (x : F A) (f : F (A -> B)) (g : F (B -> C)) :
+    ap (ap (ap (pure (\lam (g : B -> C) (f : A -> B) (x : A) => g (f x))) g) f) x =
+    ap g (ap f x)
+
+\class Monad \extends Applicative
+  | bind {A B : \Type} : (F A) -> (A -> F B) -> F B
+  | monad-left-id {A B : \Type} (a : A) (f : A -> F B) : bind (pure a) f = f a
+  | monad-right-id {A : \Type} (a : F A) : bind a pure = a
+  | monad-assoc {A B C : \Type} (x : F A) (f : A -> F B) (g : B -> F C) :
+    bind x (\lam y => bind (f y) g) = bind (bind x f) g
+
 \data Maybe (A : \Type) | nothing | just A
+
+\instance Maybe-Monad : Monad Maybe
+  | fmap => fmap
+  | fmap-id => fmap-id
+  | fmap-comp => fmap-comp
+  | pure => just
+  | ap => ap
+  | ap-id => ap-id
+  | ap-homo => \lam _ _ => idp
+  | ap-inter => ap-inter
+  | ap-comp => ap-comp
+  | bind => bind
+  | monad-left-id => \lam _ _ => idp
+  | monad-right-id => monad-right-id
+  | monad-assoc => monad-assoc
+  \where {
+    \func fmap {A B : \Type} (f : A -> B) (a : Maybe A) : Maybe B \elim a
+      | nothing => nothing
+      | just a => just (f a)
+
+    \func fmap-id {A : \Type} (x : Maybe A) : fmap (\lam x => x) x = x \elim x
+      | nothing => idp
+      | just a => idp
+
+    \func fmap-comp {A B C : \Type} (f : A -> B) (g : B -> C) (y : Maybe A) :
+      fmap (\lam x => g (f x)) y = fmap g (fmap f y) \elim y
+      | nothing => idp
+      | just a => idp
+
+    \func ap {A B : \Type} (f : Maybe (A -> B)) (x : Maybe A) : Maybe B \elim f, x
+      | nothing, _ => nothing
+      | _, nothing => nothing
+      | just f, just x => just (f x)
+
+    \func ap-id {A : \Type} (x : Maybe A) : ap (just (\lam x => x)) x = x \elim x
+      | nothing => idp
+      | just a => idp
+
+    \func ap-inter {A B : \Type} (x : A) (f : Maybe (A -> B)) :
+      ap f (just x) = ap (just (\lam g => g x)) f \elim f
+      | nothing => idp
+      | just a => idp
+
+    \func ap-comp {A B C : \Type} (x : Maybe A) (f : Maybe (A -> B)) (g : Maybe (B -> C)) :
+      ap (ap (ap (just (\lam g f x => g (f x))) g) f) x = ap g (ap f x)
+      -- I miss u, tactic T_T
+      -- split; apply idp.
+      | nothing, nothing, nothing => idp
+      | nothing, nothing, just h => idp
+      | nothing, just a, nothing => idp
+      | nothing, just a, just a1 => idp
+      | just a, nothing, nothing => idp
+      | just a, nothing, just a1 => idp
+      | just a, just a1, nothing => idp
+      | just a, just a1, just a2 => idp
+
+    \func bind {A B : \Type} (a : Maybe A) (f : A -> Maybe B) : Maybe B \elim a
+      | nothing => nothing
+      | just a => f a
+
+    \func monad-right-id {A : \Type} (a : Maybe A) : bind a just = a \elim a
+      | nothing => idp
+      | just a => idp
+
+    \func monad-assoc {A B C : \Type} (x : Maybe A) (f : A -> Maybe B) (g : B -> Maybe C) :
+      bind x (\lam y => bind (f y) g) = bind (bind x f) g
+      | nothing, f, g => idp
+      | just a, f, g => idp
+  }
 
 -- 6. Define instances for the class of monads for 'State' and 'State''.
 

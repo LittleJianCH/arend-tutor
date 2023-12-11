@@ -245,6 +245,12 @@
 -- Z' has three fields: aa, bb, A
 \record Z' \extends X', Y'
 
+\func zzz' => \new Z' {
+  | A => {?}
+  | aa => {?}
+  | bb => {?}
+}
+
 \class CommMonoid' \extends Monoid {
   | comm (x y : A) : x * y = y * x
   | ide-right x => comm x ide *> ide-left x
@@ -256,9 +262,10 @@
   | inv-right (x : A) : x * inverse x = ide
 }
 
--- We omit distributivity
 \class Ring \extends AbGroup
   | mulMonoid : Monoid A
+  -- add distributivity
+  | distributivity (x y z : A) : x mulMonoid.* (y * z) = (x mulMonoid.* y) * (x mulMonoid.* z)
 
 -- This is not a correct way to define the class Ring:
 -- the structures of addition and multiplication coincide.
@@ -268,10 +275,21 @@
 \class AbGroup' (A : \Type) {
   -- Here all the fields of Monoid, CommMonoid and AbGroup
   -- should be repeated
+
+  | ide-Ab : A
+  | \infixl 7 *-Ab : A -> A -> A
+  | *-assoc-Ab (x y z : A) : (x *-Ab y) *-Ab z = x *-Ab (y *-Ab z)
+  | ide-left-Ab (x : A) : ide-Ab *-Ab x = x
+  -- | ide-right (x : A) : x * ide = x
+  | *-comm-Ab (x y : A) : x *-Ab y = y *-Ab x
+  | inverse-Ab : A -> A
+  | inv-left-Ab (x : A) : inverse-Ab x *-Ab x = ide-Ab
+  | inv-right-Ab (x : A) : x *-Ab inverse-Ab x = ide-Ab
 }
 
 \class Ring' \extends AbGroup', Monoid
   | Monoid.A => AbGroup'.A -- make sure that classifying fields coincide
+  | distributivity' (x y z : A) : x *-Ab (y * z) = (x * y) *-Ab (x * z)
 
 -------------------------------------------------
 -- Classes without classifying fields

@@ -1,3 +1,4 @@
+\import Equality (pmap)
 \import Records
 \import Exercises.BasicsEx (gcd)
 
@@ -152,5 +153,97 @@
 \record State (S A : \Type)
   | state : S -> \Sigma S A
 
+\instance State-Moand (S : \Type) : Monad (State S)
+  | fmap => fmap
+  | fmap-id => \lam sa => idp
+  | fmap-comp => \lam f g sa => idp
+  | pure => pure
+  | ap => ap
+  | ap-id => \lam sa => idp
+  | ap-homo => \lam x f => idp
+  | ap-inter => \lam x sab => idp
+  | ap-comp => \lam sa sab sbc => idp
+  | bind => bind
+  | monad-left-id => \lam a f => idp
+  | monad-right-id => \lam sa => idp
+  | monad-assoc => \lam sa asb bsc => idp
+  \where {
+    \func mkState {S A : \Type} (f : S -> \Sigma S A) : State S A \cowith
+      | state => f
+
+    \func fmap {S A B : \Type} (f : A -> B) (x : State S A) : State S B =>
+      mkState \lam s => \let sa => x.state s \in (sa.1, f sa.2)
+
+    \func pure {S A : \Type} (x : A) : State S A =>
+      mkState \lam s => (s, x)
+
+    \func ap {S A B : \Type} (f : State S (A -> B)) (x : State S A) : State S B =>
+      mkState \lam s => \let sab => f.state s \in
+                        \let sa => x.state sab.1 \in
+                        (sa.1, sab.2 sa.2)
+
+    \func bind {S A B : \Type} (a : State S A) (f : A -> State S B) : State S B =>
+      mkState \lam s => \let sa => a.state s \in
+                        state {f sa.2} sa.1
+  }
+
 \data State' (S A : \Type)
   | state' (S -> \Sigma S A)
+
+\instance State'-Monad (S : \Type) : Monad (State' S)
+  | fmap => fmap
+  | fmap-id => fmap-id
+  | fmap-comp => \lam f g sa => idp
+  | pure => pure
+  | ap => ap
+  | ap-id => ap-id
+  | ap-homo => \lam x f => idp
+  | ap-inter => \lam x sab => idp
+  | ap-comp => \lam sa sab sbc => idp
+  | bind => bind
+  | monad-left-id => {?}
+  | monad-right-id => monad-right-id
+  | monad-assoc => \lam sa asb bsc => idp
+  \where {
+    \func mkState {S A : \Type} (f : S -> \Sigma S A) : State' S A =>
+      state' f
+
+    \func runState {S A : \Type} (sa : State' S A) : S -> \Sigma S A \elim sa
+      | state' f => f
+
+    \func fmap {S A B : \Type} (f : A -> B) (x : State' S A) : State' S B =>
+      mkState \lam s => \let sa => runState x s \in (sa.1, f sa.2)
+
+    \func pure {S A : \Type} (x : A) : State' S A =>
+      mkState \lam s => (s, x)
+
+    \func ap {S A B : \Type} (f : State' S (A -> B)) (x : State' S A) : State' S B =>
+      mkState \lam s => \let sab => runState f s \in
+        \let sa => runState x sab.1 \in
+          (sa.1, sab.2 sa.2)
+
+    \func bind {S A B : \Type} (a : State' S A) (f : A -> State' S B) : State' S B =>
+      mkState \lam s => \let sa => runState a s \in
+        runState (f sa.2) sa.1 -- the hardest part of proving monad-left-id is that
+                               -- Arend cant extract (f sa.2) here.
+
+    \func fmap-id {A : \Type} (sa : State' S A) : fmap (\lam x => x) sa = sa
+      | A, state' _ => idp
+
+    \func ap-id {A : \Type} (sa : State' S A) : ap (pure (\lam x => x)) sa = sa
+      | A, state' _ => idp
+
+    \func monad-left-id {A B : \Type} (a : A) (f : A -> State' S B) : bind (pure a) f = f a =>
+      transport (\lam x => bind (pure a) f = x) mk-runState-eq (pmap mkState (insider-eq a f))
+      \where {
+        \func mk-runState-eq {S A : \Type} {a : State' S A} : mkState (runState a) = a
+          | {S1}, {A1}, {state' _x} => idp
+
+        \func insider-eq {A B : \Type} (a : A) (f : A -> State' S B):
+                      (\lam s => \let sa => runState (pure a) s \in runState (f sa.2) sa.1) =
+                      runState (f a) => idp
+      }
+
+    \func monad-right-id {A : \Type} (sa : State' S A) : bind sa pure = sa
+      | A, state' _ => idp
+  }

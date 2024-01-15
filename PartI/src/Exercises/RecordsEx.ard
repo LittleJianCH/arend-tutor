@@ -192,17 +192,17 @@
 
 \instance State'-Monad (S : \Type) : Monad (State' S)
   | fmap => fmap
-  | fmap-id => fmap-id
+  | fmap-id => fmap-id S
   | fmap-comp => \lam f g sa => idp
   | pure => pure
   | ap => ap
-  | ap-id => ap-id
+  | ap-id => ap-id S
   | ap-homo => \lam x f => idp
   | ap-inter => \lam x sab => idp
   | ap-comp => \lam sa sab sbc => idp
   | bind => bind
-  | monad-left-id => {?}
-  | monad-right-id => monad-right-id
+  | monad-left-id => monad-left-id S
+  | monad-right-id => monad-right-id S
   | monad-assoc => \lam sa asb bsc => idp
   \where {
     \func mkState {S A : \Type} (f : S -> \Sigma S A) : State' S A =>
